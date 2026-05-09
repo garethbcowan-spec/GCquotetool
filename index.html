@@ -74,4 +74,104 @@
 </div>
 <script>
 const products = [
-  {name:"Shipping", kit:25, half:null, single:nu
+  {name:"Shipping", kit:25, half:null, single:null, isShipping:true},
+  {name:"R10", kit:230, half:144, single:46},
+  {name:"R20", kit:345, half:219, single:69},
+  {name:"R30", kit:460, half:288, single:92},
+  {name:"T10", kit:150, half:98, single:35},
+  {name:"T30", kit:259, half:104, single:52},
+  {name:"HGH 10iu", kit:184, half:115, single:41},
+  {name:"HGH 24iu", kit:288, half:184, single:58},
+  {name:"HGH 36iu", kit:403, half:253, single:81},
+  {name:"Tesamorelin 10mg", kit:374, half:236, single:81},
+  {name:"Ipamorelin 10mg", kit:190, half:121, single:41},
+  {name:"SS-31 50mg", kit:690, half:432, single:138},
+  {name:"MOTS-C 10mg", kit:167, half:104, single:35},
+  {name:"Semax 10mg", kit:167, half:104, single:35},
+  {name:"GHK-CU 50mg", kit:92, half:69, single:23},
+  {name:"NAD+ 500mg", kit:202, half:127, single:41},
+  {name:"GLOW 70mg", kit:420, half:265, single:92},
+  {name:"BPC-157 10mg", kit:161, half:104, single:35},
+  {name:"TB-500 10mg", kit:357, half:225, single:87},
+  {name:"MT1", kit:219, half:138, single:46},
+  {name:"MT2", kit:219, half:138, single:46},
+  {name:"CJC no DAC 10mg", kit:334, half:213, single:69},
+  {name:"TB-BPC Blend 10/10mg", kit:368, half:230, single:87},
+  {name:"Oxytocin 10mg", kit:173, half:110, single:35},
+  {name:"Cialis (50x20mg)", kit:46, half:null, single:null},
+  {name:"PT-141 10mg", kit:161, half:104, single:35},
+  {name:"IGF-1 LR3 1mg", kit:443, half:276, single:104},
+  {name:"KLOW 80mg", kit:489, half:305, single:104},
+  {name:"HCG 5000iu", kit:202, half:127, single:41},
+];
+let state = {};
+products.forEach((p,i) => { state[i] = {tier:null, qty:1}; });
+function tierPrice(p,t) {
+  if(t==="kit") return p.kit;
+  if(t==="half") return p.half;
+  if(t==="single") return p.single;
+  return null;
+}
+function tierName(t) {
+  if(t==="kit") return "Kit";
+  if(t==="half") return "1/2 Kit";
+  return "Single";
+}
+function toggleShipping(i) {
+  state[i].tier = state[i].tier === "kit" ? null : "kit";
+  renderSkus(); renderCart();
+}
+function selectTier(i, tier) {
+  if(tierPrice(products[i], tier) === null) return;
+  state[i].tier = state[i].tier === tier ? null : tier;
+  renderSkus(); renderCart();
+}
+function changeQty(i, delta) {
+  state[i].qty = Math.max(1, state[i].qty + delta);
+  renderSkus(); renderCart();
+}
+function clearCart() {
+  products.forEach((_,i) => { state[i] = {tier:null, qty:1}; });
+  renderSkus(); renderCart();
+}
+function renderSkus() {
+  const q = document.getElementById("search").value.toLowerCase();
+  const el = document.getElementById("sku-list");
+  const filtered = products.map((p,i) => ({p,i})).filter(({p}) => p.name.toLowerCase().includes(q));
+  el.innerHTML = filtered.map(({p,i}) => {
+    const s = state[i];
+    if(p.isShipping) {
+      const active = s.tier === "kit";
+      return `<div class="sku-card shipping"><div class="sku-name">&#128666; Shipping</div><button class="ship-btn${active?" active":""}" onclick="toggleShipping(${i})"><span class="ship-btn-label">${active?"Added to quote — tap to remove":"Add flat rate shipping"}</span><span class="ship-price">$25</span></button></div>`;
+    }
+    const tiers = ["kit","half","single"];
+    const tierHTML = tiers.map(t => {
+      const price = tierPrice(p,t);
+      const isNull = price === null;
+      const isActive = s.tier === t;
+      return `<div class="tier-btn${isActive?" active":""}${isNull?" disabled":""}" onclick="selectTier(${i},'${t}')"><span class="tier-label">${tierName(t)}</span><span class="tier-price">${isNull?"—":"$"+price}</span></div>`;
+    }).join("");
+    const hasSelection = s.tier !== null;
+    const lineTotal = hasSelection ? tierPrice(p, s.tier) * s.qty : 0;
+    return `<div class="sku-card"><div class="sku-name">${p.name}</div><div class="tier-row">${tierHTML}</div>${hasSelection?`<div class="qty-row"><button class="qty-btn" onclick="changeQty(${i},-1)">−</button><span class="qty-num">${s.qty}</span><button class="qty-btn" onclick="changeQty(${i},1)">+</button><span class="qty-label">${tierName(s.tier)} @ $${tierPrice(p,s.tier)}</span><span class="qty-total">$${lineTotal}</span></div>`:""}</div>`;
+  }).join("");
+}
+function renderCart() {
+  const el = document.getElementById("cart");
+  const items = products.map((p,i) => ({p,i})).filter(({i}) => state[i].tier !== null);
+  if(!items.length) { el.innerHTML=`<div class="empty">No products selected yet</div>`; document.getElementById("grand-total").textContent="$0"; return; }
+  let total = 0;
+  el.innerHTML = items.map(({p,i}) => {
+    const {tier,qty} = state[i];
+    const price = tierPrice(p,tier);
+    const line = p.isShipping ? price : price*qty;
+    total += line;
+    return `<div class="cart-item"><div><div class="cart-name">${p.name}</div><div class="cart-detail">${p.isShipping?"Flat rate":tierName(tier)+" × "+qty+" @ $"+price}</div></div><span class="cart-price">$${line.toLocaleString()}</span></div>`;
+  }).join("");
+  document.getElementById("grand-total").textContent = "$"+total.toLocaleString();
+}
+renderSkus();
+renderCart();
+</script>
+</body>
+</html>
